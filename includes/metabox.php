@@ -149,6 +149,7 @@ final class NRA_Metabox {
                 <div class="nra-inline"><button type="button" class="nra-btn primary" id="nra-w-go">&#9997; Write it</button><button type="button" class="nra-btn" id="nra-w-short">Write short description (WooCommerce excerpt)</button></div>
                 <div id="nra-w-out" class="nra-out"></div>
                 <div class="nra-inline" id="nra-w-actions" style="display:none"><button type="button" class="nra-btn primary" id="nra-w-replace">Replace editor content</button><button type="button" class="nra-btn" id="nra-w-append">Add to end</button></div>
+                <?php NRA_Writer::editor_box( $post ); ?>
             </div>
 
             <div class="nra-pane" data-p="links">
@@ -203,6 +204,7 @@ final class NRA_Metabox {
         $faq = array(); $qs = (array) ( $P['nra_faq_q'] ?? array() ); $as = (array) ( $P['nra_faq_a'] ?? array() );
         foreach ( $qs as $i => $q ) { $q = sanitize_text_field( $q ); $a = isset( $as[ $i ] ) ? wp_kses( $as[ $i ], array( 'a' => array( 'href' => array() ), 'strong' => array(), 'em' => array(), 'br' => array() ) ) : ''; if ( '' !== $q && '' !== trim( $a ) ) { $faq[] = array( 'q' => $q, 'a' => trim( $a ) ); } }
         $faq ? update_post_meta( $id, '_nra_faq', array_slice( $faq, 0, 12 ) ) : delete_post_meta( $id, '_nra_faq' );
+        if ( ! empty( $P['nra_aw_clear'] ) ) { delete_post_meta( $id, '_nra_aw_staged' ); }
         NRA_Sitemap::bump(); NRA_Geo::bump();
         NRA_Analyzer::analyze_post( $id );
     }

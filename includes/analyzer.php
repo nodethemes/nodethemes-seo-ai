@@ -34,7 +34,7 @@ final class NRA_Analyzer {
      * @return array score, status, checks[], geo_score, geo_checks[], stats
      */
     public static function analyze( $d ) {
-        $d = array_merge( array( 'title' => '', 'content' => '', 'slug' => '', 'kw' => '', 'seo_title' => '', 'desc' => '', 'excerpt' => '', 'post_id' => 0, 'faq' => array(), 'takeaways' => array(), 'type' => 'post' ), $d );
+        $d = array_merge( array( 'title' => '', 'content' => '', 'slug' => '', 'kw' => '', 'seo_title' => '', 'desc' => '', 'excerpt' => '', 'post_id' => 0, 'faq' => array(), 'takeaways' => array(), 'type' => 'post', 'aw_inbound' => 0 ), $d );
         if ( $d['post_id'] && 'post' === $d['type'] ) { $d['type'] = (string) get_post_type( $d['post_id'] ); }
         $is_product = ( 'product' === $d['type'] );
         $kw      = trim( $d['kw'] );
@@ -157,7 +157,10 @@ final class NRA_Analyzer {
         elseif ( $wc > 200 ) { self::check( $c, 'img', $videos ? 'good' : 'ok', 'Images / video', $videos ? 'A video is embedded.' : 'No image or video in the content. Add at least one (featured image counts for themes, but in-content media helps readers).', 0 ); }
         if ( $d['post_id'] ) {
             $inc = self::inbound_count( (int) $d['post_id'] );
-            if ( null !== $inc ) { self::check( $c, 'inbound', $inc > 0 ? 'good' : 'bad', 'Links pointing to this page', $inc > 0 ? $inc . ' page(s) link here.' : 'Orphan page: no other page links here. Open Link Map.', 2 ); }
+            $planned = (int) $d['aw_inbound'];
+            if ( ! $planned && 'publish' !== get_post_status( $d['post_id'] ) ) { $pl = get_post_meta( $d['post_id'], '_nra_aw_inbound', true ); $planned = is_array( $pl ) ? count( $pl ) : 0; }
+            if ( null !== $inc && 0 === $inc && $planned > 0 ) { self::check( $c, 'inbound', 'good', 'Links pointing to this page', $planned . ' related page(s) will link here as soon as this page is live (planned by the Auto Writer).', 2 ); }
+            elseif ( null !== $inc ) { self::check( $c, 'inbound', $inc > 0 ? 'good' : 'bad', 'Links pointing to this page', $inc > 0 ? $inc . ' page(s) link here.' : 'Orphan page: no other page links here. Open Link Map.', 2 ); }
         }
 
         // ---- GEO checks (AI answer readiness)

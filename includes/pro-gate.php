@@ -9,6 +9,8 @@ final class NRA_Pro {
     const UPGRADE_URL = 'https://nodethemes.com/product/nodethemes-seo-ai-pro/';
     const FREE_PROMPTS = 3;
     const FREE_LINK_SUGGESTIONS = 3;
+    /** Auto Writer runs per calendar month in the free plugin */
+    const FREE_AUTOWRITER = 2;
 
     /** is the Pro add-on plugin installed and active? (it announces itself through this filter) */
     public static function has_code() { return (bool) apply_filters( 'nra_pro_installed', false ); }
@@ -30,6 +32,7 @@ final class NRA_Pro {
             'Fix to 100 and one-click Fix with AI on every check',
             'AI outbound-link finder with live link checking',
             'Smart one-click internal linking from all relevant pages',
+            'Auto Writer without limits: up to 4,000 words, many products at once, and a topic schedule',
             'Long-form writer: 1,500 to 5,000 word articles and product pages',
             'Bulk AI optimisation for the whole store',
             'AI-visibility tracker with unlimited questions and competitor names',

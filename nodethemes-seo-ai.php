@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       NodeThemes SEO AI - SEO & AI-Search Optimization
  * Plugin URI:        https://nodethemes.com/
- * Description:       AI-powered SEO for Google AND for AI answer engines (ChatGPT, Gemini, Claude, Perplexity). Bring your own OpenAI / Claude / Gemini API key: keyword research, meta data, product & article writing, schema, sitemaps, llms.txt, AI-crawler control, AI-visibility tracking and a visual internal-link map.
- * Version:           1.2.8
+ * Description:       AI-powered SEO for Google AND for AI answer engines (ChatGPT, Gemini, Claude, Perplexity). Bring your own OpenAI / Claude / Gemini API key: keyword research, meta data, product & article writing, an Auto Writer for complete SEO-ready pages (2 a month), schema, sitemaps, llms.txt, AI-crawler control, AI-visibility tracking and a visual internal-link map.
+ * Version:           1.3.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NodeThemes
@@ -16,13 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 if ( defined( 'NRA_VERSION' ) ) { return; }
 
-define( 'NRA_VERSION', '1.2.8' );
+define( 'NRA_VERSION', '1.3.0' );
 define( 'NRA_DB_VERSION', '3' );
 define( 'NRA_FILE', __FILE__ );
 define( 'NRA_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NRA_URL', plugin_dir_url( __FILE__ ) );
 
-foreach ( array( 'util', 'jobs', 'pro-gate', 'settings', 'ai', 'analyzer', 'schema', 'frontend', 'sitemap', 'redirects', 'geo', 'extras', 'links', 'import', 'metabox', 'admin' ) as $nra_f ) {
+foreach ( array( 'util', 'jobs', 'pro-gate', 'settings', 'ai', 'analyzer', 'schema', 'frontend', 'sitemap', 'redirects', 'geo', 'extras', 'links', 'import', 'writer', 'metabox', 'admin' ) as $nra_f ) {
     require_once NRA_DIR . 'includes/' . $nra_f . '.php';
 }
 unset( $nra_f );
@@ -46,6 +46,7 @@ final class NRA_Core {
         NRA_Extras::init();
         NRA_Links::init();
         NRA_Import::init();
+        NRA_Writer::init();
         NRA_Metabox::init();
         NRA_Admin::init();
         add_action( 'admin_init', array( __CLASS__, 'maybe_upgrade' ) );

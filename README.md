@@ -12,6 +12,7 @@ NodeThemes SEO AI is a free AI SEO plugin for WordPress and WooCommerce. It help
 - Optimise any page, post or product with AI: keyphrase, SEO title, meta description, FAQ and key takeaways
 - SEO and AI-readiness checks with a score on every page
 - AI writer for articles and product pages (up to about 700 words)
+- Auto Writer: one topic (or a WooCommerce product) to a complete page aimed at 100 in both scores, with keyword, titles, meta description, takeaways, a table, FAQ, internal links and checked sources (2 pages a month, up to 1,200 words; saved as drafts)
 - Meta tags, canonical, Open Graph, Schema (JSON-LD), XML sitemap and llms.txt
 - Redirects, 404 monitor and automatic redirect when a slug changes
 - Link Map, internal link suggestions (3 per page) and AI-crawler visit log
@@ -22,6 +23,7 @@ NodeThemes SEO AI is a free AI SEO plugin for WordPress and WooCommerce. It help
 
 The free plugin is complete on its own. The Pro add-on, sold at [nodethemes.com](https://nodethemes.com/product/nodethemes-seo-ai-pro-ai-seo-plugin-for-wordpress-woocommerce/) as a yearly license with updates and support, adds:
 
+- Auto Writer without limits: up to 4,000 words, many products at once and a topic schedule
 - Fix to 100: one-click AI fixes for every check
 - Long-form writer up to 5,000 words
 - Smart one-click internal linking for the whole site

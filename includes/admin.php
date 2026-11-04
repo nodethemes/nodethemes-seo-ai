@@ -26,6 +26,7 @@ final class NRA_Admin {
         $cap = 'edit_others_posts';
         add_menu_page( 'NodeThemes SEO AI', 'NodeThemes SEO', $cap, 'nra', array( __CLASS__, 'dashboard' ), 'dashicons-chart-area', 58 );
         add_submenu_page( 'nra', 'Dashboard', 'Dashboard', $cap, 'nra', array( __CLASS__, 'dashboard' ) );
+        add_submenu_page( 'nra', 'Auto Writer', 'Auto Writer', $cap, 'nra-writer', array( 'NRA_Writer', 'render_page' ) );
         add_submenu_page( 'nra', 'Link Map', 'Link Map', $cap, 'nra-linkmap', array( __CLASS__, 'linkmap' ) );
         add_submenu_page( 'nra', 'Bulk AI', 'Bulk AI', $cap, 'nra-bulk', array( __CLASS__, 'bulk' ) );
         add_submenu_page( 'nra', 'Insights', 'Insights', 'manage_options', 'nra-insights', array( __CLASS__, 'insights' ) );

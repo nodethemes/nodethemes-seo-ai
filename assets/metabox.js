@@ -257,7 +257,7 @@
       f.on('select', function () { $('#nra_og_img').val(f.state().get('selection').first().toJSON().url); });
       f.open();
     });
-    window.NRAEditor = { collect: collect, setContent: setContent, setSerialized: setSerialized, setTitle: setTitle, setSlug: setSlug, analyze: analyze, addFaq: addFaq, addTk: addTk, autopilot: autopilot, showWriter: showWriter, getContent: getContent, getTitle: getTitle, isG: isG, pid: pid, ptype: ptype };
+    window.NRAEditor = { setExcerpt: setExcerpt, collect: collect, setContent: setContent, setSerialized: setSerialized, setTitle: setTitle, setSlug: setSlug, analyze: analyze, addFaq: addFaq, addTk: addTk, autopilot: autopilot, showWriter: showWriter, getContent: getContent, getTitle: getTitle, isG: isG, pid: pid, ptype: ptype };
     if (location.hash === '#nra') { setTimeout(function () { var e = document.querySelector('.nra-mb'); if (e && e.scrollIntoView) { e.scrollIntoView(); } }, 1500); }
     serp();
   });
