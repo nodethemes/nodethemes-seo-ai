@@ -3,19 +3,19 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
  * One interface for OpenAI, Anthropic (Claude) and Google Gemini.
- * NRA_AI::request( $system, $user, $args ) => array( ok, text, error, usage, sources )
+ * NTSEOAI_AI::request( $system, $user, $args ) => array( ok, text, error, usage, sources )
  */
-final class NRA_AI {
+final class NTSEOAI_AI {
 
     // ------------------------------------------------------------ prompt context
     public static function lang_rule() {
-        if ( 'custom' === NRA_Settings::get( 'ai_lang' ) && trim( (string) NRA_Settings::get( 'ai_lang_custom' ) ) ) {
-            return 'Write all human-readable output in ' . trim( NRA_Settings::get( 'ai_lang_custom' ) ) . '.';
+        if ( 'custom' === NTSEOAI_Settings::get( 'ai_lang' ) && trim( (string) NTSEOAI_Settings::get( 'ai_lang_custom' ) ) ) {
+            return 'Write all human-readable output in ' . trim( NTSEOAI_Settings::get( 'ai_lang_custom' ) ) . '.';
         }
         return 'Write all human-readable output in the same language as the page title/content you are given (if there is no text, use the site language: ' . get_locale() . '). JSON keys stay in English.';
     }
     public static function context() {
-        $s = NRA_Settings::all();
+        $s = NTSEOAI_Settings::all();
         $c  = "You are a senior SEO and Generative-Engine-Optimization (GEO) specialist working inside a WordPress plugin. You write for humans first and for search engines and AI answer engines second.\n";
         $c .= 'Site: ' . get_bloginfo( 'name' ) . ' (' . home_url( '/' ) . ")\n";
         if ( get_bloginfo( 'description' ) ) { $c .= 'Tagline: ' . get_bloginfo( 'description' ) . "\n"; }
@@ -27,16 +27,16 @@ final class NRA_AI {
     /** keep prompts small: head + tail of long text */
     public static function clip( $text, $max = 12000 ) {
         $text = (string) $text;
-        if ( NRA_Util::len( $text ) <= $max ) { return $text; }
+        if ( NTSEOAI_Util::len( $text ) <= $max ) { return $text; }
         $h = (int) ( $max * 0.7 );
         $t = $max - $h;
         return mb_substr( $text, 0, $h, 'UTF-8' ) . "\n[...]\n" . mb_substr( $text, -$t, null, 'UTF-8' );
     }
 
     // ------------------------------------------------------------ usage / cap / budget
-    /** USD per 1M tokens: array( input, output ). Estimates for the daily budget; longest matching key wins. Edit via Settings > Custom model prices or the nra_model_prices filter. */
+    /** USD per 1M tokens: array( input, output ). Estimates for the daily budget; longest matching key wins. Edit via Settings > Custom model prices or the ntseoai_model_prices filter. */
     public static function price_table() {
-        return apply_filters( 'nra_model_prices', array(
+        return apply_filters( 'ntseoai_model_prices', array(
             // Anthropic
             'claude-fable-5' => array( 10, 50 ), 'claude-mythos-5' => array( 10, 50 ),
             'claude-opus-5-5' => array( 4, 20 ), 'claude-opus-5' => array( 5, 25 ), 'claude-opus-4-1' => array( 15, 75 ), 'claude-opus-4-0' => array( 15, 75 ), 'claude-opus-4' => array( 5, 25 ),
@@ -56,7 +56,7 @@ final class NRA_AI {
     /** custom prices typed by the owner: one per line, "model: input, output" */
     private static function custom_prices() {
         $out = array();
-        foreach ( preg_split( '/\R/', (string) NRA_Settings::get( 'model_prices' ) ) as $line ) {
+        foreach ( preg_split( '/\R/', (string) NTSEOAI_Settings::get( 'model_prices' ) ) as $line ) {
             if ( preg_match( '/^\s*([A-Za-z0-9._\/-]+)\s*[:=]\s*\$?([0-9]*\.?[0-9]+)\s*[,;\/ ]\s*\$?([0-9]*\.?[0-9]+)\s*$/', $line, $m ) ) { $out[ strtolower( $m[1] ) ] = array( (float) $m[2], (float) $m[3] ); }
         }
         return $out;
@@ -78,13 +78,13 @@ final class NRA_AI {
     }
     private static function today_key() { return function_exists( 'wp_date' ) ? wp_date( 'Y-m-d' ) : gmdate( 'Y-m-d' ); }
     public static function usage_today() {
-        $u = get_option( 'nra_usage', array() );
+        $u = get_option( 'ntseoai_usage', array() );
         $d = self::today_key();
         $t = ( is_array( $u ) && isset( $u[ $d ] ) ) ? $u[ $d ] : array();
         return array_merge( array( 'calls' => 0, 'in' => 0, 'out' => 0, 'cost' => 0.0 ), $t );
     }
     private static function log_usage( $in, $out, $cost = 0.0 ) {
-        $u = get_option( 'nra_usage', array() );
+        $u = get_option( 'ntseoai_usage', array() );
         if ( ! is_array( $u ) ) { $u = array(); }
         $d = self::today_key();
         if ( ! isset( $u[ $d ] ) ) { $u[ $d ] = array( 'calls' => 0, 'in' => 0, 'out' => 0, 'cost' => 0.0 ); }
@@ -93,23 +93,28 @@ final class NRA_AI {
         $u[ $d ]['out'] += (int) $out;
         $u[ $d ]['cost'] = (float) ( $u[ $d ]['cost'] ?? 0 ) + (float) $cost;
         krsort( $u );
-        update_option( 'nra_usage', array_slice( $u, 0, 30, true ), false );
+        update_option( 'ntseoai_usage', array_slice( $u, 0, 30, true ), false );
     }
-    public static function configured() { return NRA_Settings::has_key( NRA_Settings::get( 'provider' ) ); }
+    public static function configured() {
+        $p = NTSEOAI_Settings::get( 'provider' );
+        if ( NTSEOAI_Settings::WP_PROVIDER === $p ) { return NTSEOAI_Settings::wp_ai_available(); }
+        return NTSEOAI_Settings::has_key( $p );
+    }
 
     // ------------------------------------------------------------ main entry
     public static function request( $system, $user, $args = array() ) {
         $a = array_merge( array( 'provider' => '', 'model' => '', 'key' => '', 'max_tokens' => 1500, 'temperature' => null, 'json' => false, 'search' => false, 'timeout' => 55, 'count' => true, 'write' => false ), $args );
-        $prov = $a['provider'] ? $a['provider'] : NRA_Settings::get( 'provider' );
-        if ( ! isset( NRA_Settings::providers()[ $prov ] ) ) { return self::err( 'Unknown AI provider.' ); }
-        $key = $a['key'] ? $a['key'] : NRA_Settings::api_key( $prov );
-        if ( '' === $key ) { return self::err( 'No API key saved for ' . NRA_Settings::providers()[ $prov ]['label'] . '. Add one in NodeThemes SEO AI > Settings > AI Provider.' ); }
-        $model = $a['model'] ? $a['model'] : ( $a['write'] ? NRA_Settings::model( $prov ) : NRA_Settings::model_fast( $prov ) );
+        $prov = $a['provider'] ? $a['provider'] : NTSEOAI_Settings::get( 'provider' );
+        if ( NTSEOAI_Settings::WP_PROVIDER === $prov ) { return self::wp_request( $system, $user, $a ); }
+        if ( ! isset( NTSEOAI_Settings::providers()[ $prov ] ) ) { return self::err( 'Unknown AI provider.' ); }
+        $key = $a['key'] ? $a['key'] : NTSEOAI_Settings::api_key( $prov );
+        if ( '' === $key ) { return self::err( 'No API key saved for ' . NTSEOAI_Settings::providers()[ $prov ]['label'] . '. Add one in NodeThemes SEO AI > Settings > AI Provider.' ); }
+        $model = $a['model'] ? $a['model'] : ( $a['write'] ? NTSEOAI_Settings::model( $prov ) : NTSEOAI_Settings::model_fast( $prov ) );
         if ( '' === $model ) { return self::err( 'No model selected.' ); }
         if ( $a['count'] ) {
-            $cap = (int) NRA_Settings::get( 'daily_cap' );
+            $cap = (int) NTSEOAI_Settings::get( 'daily_cap' );
             if ( $cap > 0 && (int) self::usage_today()['calls'] >= $cap ) { return self::err( 'Daily AI request limit reached (' . $cap . '). Raise it in Settings or try tomorrow.' ); }
-            $budget = (float) NRA_Settings::get( 'daily_budget' );
+            $budget = (float) NTSEOAI_Settings::get( 'daily_budget' );
             if ( $budget > 0 ) {
                 $spent = (float) self::usage_today()['cost'];
                 if ( $spent >= $budget ) { return self::err( 'Daily AI budget reached (about $' . number_format( $spent, 2 ) . ' of $' . number_format( $budget, 2 ) . ' used today). Raise the budget in NodeThemes SEO > Settings > AI Provider, or try again tomorrow.' ); }
@@ -129,12 +134,46 @@ final class NRA_AI {
         return $r;
     }
 
+    /** daily request cap and budget; returns an error message or '' */
+    private static function over_limit() {
+        $cap = (int) NTSEOAI_Settings::get( 'daily_cap' );
+        if ( $cap > 0 && (int) self::usage_today()['calls'] >= $cap ) { return 'Daily AI request limit reached (' . $cap . '). Raise it in Settings or try tomorrow.'; }
+        return '';
+    }
+
+    /** text generation with the WordPress AI Client (WordPress 7.0+, Settings > Connectors) */
+    private static function wp_request( $system, $user, $a ) {
+        if ( ! NTSEOAI_Settings::wp_ai_available() ) { return self::err( 'The WordPress AI Client is not available on this site. Choose another provider in NodeThemes SEO > Settings > AI Provider.' ); }
+        if ( $a['count'] ) { $lim = self::over_limit(); if ( $lim ) { return self::err( $lim ); } }
+        if ( function_exists( 'set_time_limit' ) ) { @set_time_limit( (int) $a['timeout'] + 30 ); } // phpcs:ignore
+        try {
+            // Only reached when NTSEOAI_Settings::wp_ai_available() confirmed the function exists (WordPress 7.0+).
+            $ntseoai_prompt_fn = 'wp_ai_client_prompt';
+            $builder = $ntseoai_prompt_fn( (string) $user )
+                ->using_system_instruction( (string) $system )
+                ->using_max_tokens( max( 200, (int) $a['max_tokens'] ) )
+                ->using_request_options( \WordPress\AiClient\Providers\Http\DTO\RequestOptions::fromArray( array( 'timeout' => (float) max( 30, (int) $a['timeout'] ) ) ) );
+            if ( ! $builder->is_supported_for_text_generation() ) {
+                return self::err( 'No AI service is connected in WordPress yet. Connect one under Settings > Connectors, or choose another provider in NodeThemes SEO > Settings > AI Provider.' );
+            }
+            $result = $builder->generate_text_result();
+            if ( is_wp_error( $result ) ) { return self::err( $result->get_error_message() ); }
+            $text = trim( (string) $result->toText() );
+            if ( '' === $text ) { return self::err( 'The AI service returned an empty answer. Try again.' ); }
+            $model = substr( $result->getProviderMetadata()->getId() . '/' . $result->getModelMetadata()->getId(), 0, 100 );
+            if ( $a['count'] ) { self::log_usage( 0, 0, 0.0 ); }
+            return array( 'ok' => true, 'text' => $text, 'error' => '', 'usage' => null, 'sources' => array(), 'web' => false, 'provider' => NTSEOAI_Settings::WP_PROVIDER, 'model' => $model );
+        } catch ( \Throwable $e ) {
+            return self::err( 'WordPress AI error: ' . $e->getMessage() );
+        }
+    }
+
     /** request that must return a JSON object; returns array( ok, data, text, error ) */
     public static function json( $system, $user, $args = array() ) {
         $args['json'] = true;
         $r = self::request( $system . "\nReturn ONLY one valid JSON object, no markdown fences, no commentary.", $user, $args );
         if ( ! $r['ok'] ) { return $r; }
-        $d = NRA_Util::json_loose( $r['text'] );
+        $d = NTSEOAI_Util::json_loose( $r['text'] );
         if ( ! is_array( $d ) ) {
             $r['ok'] = false;
             $r['error'] = 'The AI answer was not valid JSON. Try again, or use a stronger model in Settings.';
@@ -148,7 +187,7 @@ final class NRA_AI {
 
     // ------------------------------------------------------------ HTTP
     private static function http( $url, $headers, $body, $timeout, $method = 'POST' ) {
-        $args = array( 'timeout' => $timeout, 'headers' => $headers, 'redirection' => 0, 'user-agent' => 'NodeThemes SEO-AI/' . NRA_VERSION );
+        $args = array( 'timeout' => $timeout, 'headers' => $headers, 'redirection' => 0, 'user-agent' => 'NodeThemes SEO-AI/' . NTSEOAI_VERSION );
         if ( 'POST' === $method ) { $args['body'] = wp_json_encode( $body ); $res = wp_remote_post( $url, $args ); }
         else { $res = wp_remote_get( $url, $args ); }
         if ( is_wp_error( $res ) ) {
@@ -316,8 +355,9 @@ final class NRA_AI {
 
     // ------------------------------------------------------------ model list
     public static function list_models( $prov, $key = '' ) {
-        if ( ! isset( NRA_Settings::providers()[ $prov ] ) ) { return array( 'ok' => false, 'error' => 'Unknown provider.' ); }
-        $key = $key ? $key : NRA_Settings::api_key( $prov );
+        if ( NTSEOAI_Settings::WP_PROVIDER === $prov ) { return array( 'ok' => false, 'error' => 'WordPress AI chooses the model in Settings > Connectors.' ); }
+        if ( ! isset( NTSEOAI_Settings::providers()[ $prov ] ) ) { return array( 'ok' => false, 'error' => 'Unknown provider.' ); }
+        $key = $key ? $key : NTSEOAI_Settings::api_key( $prov );
         if ( '' === $key ) { return array( 'ok' => false, 'error' => 'Paste your API key first.' ); }
         $models = array();
         if ( 'openai' === $prov ) {

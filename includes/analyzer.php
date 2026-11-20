@@ -2,17 +2,17 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /** On-page SEO + GEO (AI-answer-readiness) scoring. Pure functions, used by metabox, bulk and dashboard. */
-final class NRA_Analyzer {
+final class NTSEOAI_Analyzer {
 
     /** meta getter with defaults */
     public static function meta( $id ) {
-        $g = function ( $k ) use ( $id ) { return (string) get_post_meta( $id, '_nra_' . $k, true ); };
+        $g = function ( $k ) use ( $id ) { return (string) get_post_meta( $id, '_ntseoai_' . $k, true ); };
         return array(
             'kw' => $g( 'focuskw' ), 'title' => $g( 'title' ), 'desc' => $g( 'desc' ),
             'noindex' => $g( 'noindex' ), 'nofollow' => $g( 'nofollow' ), 'canonical' => $g( 'canonical' ),
             'og_title' => $g( 'og_title' ), 'og_desc' => $g( 'og_desc' ), 'og_img' => $g( 'og_img' ),
             'cornerstone' => $g( 'cornerstone' ), 'schema_type' => $g( 'schema_type' ),
-            'faq' => (array) get_post_meta( $id, '_nra_faq', true ), 'takeaways' => (array) get_post_meta( $id, '_nra_takeaways', true ),
+            'faq' => (array) get_post_meta( $id, '_ntseoai_faq', true ), 'takeaways' => (array) get_post_meta( $id, '_ntseoai_takeaways', true ),
         );
     }
 
@@ -22,11 +22,11 @@ final class NRA_Analyzer {
     private static function check( &$out, $id, $st, $label, $msg, $w = 1, $fix = '' ) { $out[] = array( 'id' => $id, 'status' => $st, 'label' => $label, 'msg' => $msg, 'w' => $w, 'fix' => ( 'good' === $st ) ? '' : $fix ); }
 
     /** words that tend to lift click-through (English and Persian) */
-    private static function power_words() { return apply_filters( 'nra_power_words', array( 'best', 'ultimate', 'fast', 'faster', 'easy', 'pro', 'free', 'exclusive', 'proven', 'complete', 'guide', 'essential', 'simple', 'powerful', 'top', 'new', 'secret', 'instant', 'effective', 'trusted', 'خرید', 'بهترین', 'رایگان', 'کامل', 'آسان', 'سریع', 'ویژه', 'حرفه‌ای', 'اختصاصی', 'تضمینی', 'جدید', 'راهنمای' ) ); }
+    private static function power_words() { return apply_filters( 'ntseoai_power_words', array( 'best', 'ultimate', 'fast', 'faster', 'easy', 'pro', 'free', 'exclusive', 'proven', 'complete', 'guide', 'essential', 'simple', 'powerful', 'top', 'new', 'secret', 'instant', 'effective', 'trusted', 'خرید', 'بهترین', 'رایگان', 'کامل', 'آسان', 'سریع', 'ویژه', 'حرفه‌ای', 'اختصاصی', 'تضمینی', 'جدید', 'راهنمای' ) ); }
 
     private static function contains( $hay, $needle ) {
-        $n = NRA_Util::norm( $needle );
-        return '' !== $n && false !== strpos( NRA_Util::norm( $hay ), $n );
+        $n = NTSEOAI_Util::norm( $needle );
+        return '' !== $n && false !== strpos( NTSEOAI_Util::norm( $hay ), $n );
     }
 
     /**
@@ -39,11 +39,11 @@ final class NRA_Analyzer {
         $is_product = ( 'product' === $d['type'] );
         $kw      = trim( $d['kw'] );
         $html    = (string) $d['content'];
-        $text    = NRA_Util::text( $html );
-        $wc      = NRA_Util::word_count( $text );
+        $text    = NTSEOAI_Util::text( $html );
+        $wc      = NTSEOAI_Util::word_count( $text );
         $title   = $d['seo_title'] ? $d['seo_title'] : $d['title'];
-        $tl      = NRA_Util::len( $title );
-        $dl      = NRA_Util::len( $d['desc'] );
+        $tl      = NTSEOAI_Util::len( $title );
+        $dl      = NTSEOAI_Util::len( $d['desc'] );
         $c       = array();
 
         // ---- links / images / headings from html
@@ -67,14 +67,14 @@ final class NRA_Analyzer {
                 if ( '' === $alt ) { $noalt++; } elseif ( $kw && self::contains( $alt, $kw ) ) { $kw_alt++; }
             }
             $ps = $dom->getElementsByTagName( 'p' );
-            foreach ( $ps as $pn ) { if ( NRA_Util::word_count( $pn->textContent ) > 120 ) { $longp++; } }
-            foreach ( $ps as $pn ) { if ( NRA_Util::word_count( $pn->textContent ) >= 12 ) { $first = $pn->textContent; break; } }
+            foreach ( $ps as $pn ) { if ( NTSEOAI_Util::word_count( $pn->textContent ) > 120 ) { $longp++; } }
+            foreach ( $ps as $pn ) { if ( NTSEOAI_Util::word_count( $pn->textContent ) >= 12 ) { $first = $pn->textContent; break; } }
             if ( '' === $first && $ps->length ) { $first = $ps->item( 0 )->textContent; }
             $tables = $dom->getElementsByTagName( 'table' )->length;
             $videos = $dom->getElementsByTagName( 'video' )->length;
             foreach ( $dom->getElementsByTagName( 'iframe' ) as $fr ) { if ( preg_match( '#(youtube|youtu\.be|vimeo|aparat|dailymotion|wistia)#i', $fr->getAttribute( 'src' ) ) ) { $videos++; } }
         }
-        if ( '' === $first ) { $first = NRA_Util::cut( $text, 300 ); }
+        if ( '' === $first ) { $first = NTSEOAI_Util::cut( $text, 300 ); }
 
         // ---- SEO checks
         if ( '' === $kw ) {
@@ -83,16 +83,16 @@ final class NRA_Analyzer {
             self::check( $c, 'kw', 'good', 'Focus keyword', 'Set: "' . $kw . '".', 1 );
             self::check( $c, 'kw_title', self::contains( $title, $kw ) ? 'good' : 'bad', 'Keyword in SEO title', self::contains( $title, $kw ) ? 'The title contains the keyword.' : 'Put the focus keyword in the SEO title, ideally near the start.', 3, 'ai' );
             if ( self::contains( $title, $kw ) ) {
-                $pos = mb_strpos( NRA_Util::norm( $title ), NRA_Util::norm( $kw ), 0, 'UTF-8' );
+                $pos = mb_strpos( NTSEOAI_Util::norm( $title ), NTSEOAI_Util::norm( $kw ), 0, 'UTF-8' );
                 self::check( $c, 'kw_title_pos', ( false !== $pos && $pos <= 25 ) ? 'good' : 'ok', 'Keyword near the title start', ( false !== $pos && $pos <= 25 ) ? 'Keyword appears early in the title.' : 'Moving the keyword closer to the beginning helps click-through.', 1 );
             }
             self::check( $c, 'kw_desc', self::contains( $d['desc'], $kw ) ? 'good' : 'bad', 'Keyword in meta description', self::contains( $d['desc'], $kw ) ? 'Present.' : 'Mention the focus keyword in the meta description.', 2, 'ai' );
             self::check( $c, 'kw_slug', self::contains( str_replace( '-', ' ', rawurldecode( $d['slug'] ) ), $kw ) ? 'good' : 'ok', 'Keyword in URL', self::contains( str_replace( '-', ' ', rawurldecode( $d['slug'] ) ), $kw ) ? 'The slug contains the keyword.' : 'Consider a short URL slug that contains the keyword.', ( $d['post_id'] && 'publish' === get_post_status( $d['post_id'] ) ) ? 0 : 1, ( $d['post_id'] && 'publish' === get_post_status( $d['post_id'] ) ) ? '' : 'ai' );
             self::check( $c, 'kw_intro', self::contains( $first, $kw ) ? 'good' : 'bad', 'Keyword in the introduction', self::contains( $first, $kw ) ? 'Used in the first paragraph.' : 'Use the keyword in the first paragraph.', 2, 'ai' );
-            $kc = 0; $nt = NRA_Util::norm( $text ); $nk = NRA_Util::norm( $kw );
+            $kc = 0; $nt = NTSEOAI_Util::norm( $text ); $nk = NTSEOAI_Util::norm( $kw );
             if ( '' !== $nk ) { $kc = substr_count( $nt, $nk ); }
-            $dens = $wc ? round( $kc * max( 1, count( NRA_Util::words( $kw ) ) ) / $wc * 100, 2 ) : 0;
-            $goal = $wc ? max( 1, (int) round( $wc * 0.01 / max( 1, count( NRA_Util::words( $kw ) ) ) ) ) . '-' . max( 2, (int) round( $wc * 0.015 / max( 1, count( NRA_Util::words( $kw ) ) ) ) ) : '';
+            $dens = $wc ? round( $kc * max( 1, count( NTSEOAI_Util::words( $kw ) ) ) / $wc * 100, 2 ) : 0;
+            $goal = $wc ? max( 1, (int) round( $wc * 0.01 / max( 1, count( NTSEOAI_Util::words( $kw ) ) ) ) ) . '-' . max( 2, (int) round( $wc * 0.015 / max( 1, count( NTSEOAI_Util::words( $kw ) ) ) ) ) : '';
             if ( $wc < 50 ) { self::check( $c, 'dens', 'ok', 'Keyword repetition', 'Not enough text to measure.', 1 ); }
             elseif ( 0 === $kc ) { self::check( $c, 'dens', 'bad', 'Keyword repetition', 'The keyword never appears in the text. For ' . $wc . ' words use it about ' . $goal . ' times.', 2, 'ai' ); }
             elseif ( $dens > 3 ) { self::check( $c, 'dens', 'bad', 'Keyword repetition', 'Used ' . $kc . ' times (' . $dens . '%). That looks like stuffing; aim for about ' . $goal . ' uses and vary the wording.', 2, 'ai' ); }
@@ -126,9 +126,9 @@ final class NRA_Analyzer {
         if ( $wc >= 400 ) { self::check( $c, 'struct', ( $h['h2'] >= 2 ) ? 'good' : 'ok', 'Subheadings', ( $h['h2'] >= 2 ) ? $h['h2'] . ' H2 headings structure the text.' : 'Break long text with at least 2 H2 headings.', 1, 'ai' ); }
         if ( $h['h1'] > 0 ) { self::check( $c, 'h1', 'ok', 'H1 inside content', 'The page title is already the H1. Use H2 and below inside the content.', 1 ); }
         // sentences / readability (rough, language-agnostic)
-        $sent = NRA_Util::sentences( $text );
+        $sent = NTSEOAI_Util::sentences( $text );
         if ( count( $sent ) >= 5 ) {
-            $long = 0; foreach ( $sent as $s ) { if ( NRA_Util::word_count( $s ) > 20 ) { $long++; } }
+            $long = 0; foreach ( $sent as $s ) { if ( NTSEOAI_Util::word_count( $s ) > 20 ) { $long++; } }
             $pct = round( $long / count( $sent ) * 100 );
             self::check( $c, 'read', $pct <= 25 ? 'good' : ( $pct <= 40 ? 'ok' : 'bad' ), 'Sentence length', $pct . '% of sentences are longer than 20 words (aim for 25% or less).' . ( $pct > 25 ? ' Shorter sentences read (and get quoted) better.' : '' ), 1, 'ai' );
         }
@@ -138,8 +138,8 @@ final class NRA_Analyzer {
             self::check( $c, 'lists', $has_list ? 'good' : 'ok', 'List or table', $has_list ? 'Lists/tables break up the text.' : 'Add a bullet list, numbered steps or a comparison table.', 1, 'ai' );
         }
         if ( $wc >= 1200 && $h['h2'] >= 4 ) {
-            $has_toc = (bool) preg_match( '/\[nra_toc\]|wp-block-table-of-contents|id="toc|class="[^"]*\b(toc|ez-toc)/i', $html );
-            self::check( $c, 'toc', $has_toc ? 'good' : 'ok', 'Table of contents', $has_toc ? 'A table of contents helps readers and gives Google jump links.' : 'Long page: add a table of contents (the shortcode [nra_toc] builds one from your headings).', 0, 'ai' );
+            $has_toc = (bool) preg_match( '/\[ntseoai_toc\]|wp-block-table-of-contents|id="toc|class="[^"]*\b(toc|ez-toc)/i', $html );
+            self::check( $c, 'toc', $has_toc ? 'good' : 'ok', 'Table of contents', $has_toc ? 'A table of contents helps readers and gives Google jump links.' : 'Long page: add a table of contents (the shortcode [ntseoai_toc] builds one from your headings).', 0, 'ai' );
         }
         // links
         self::check( $c, 'int', $int > 0 ? 'good' : 'bad', 'Internal links', $int > 0 ? $int . ' internal link(s).' : 'No internal links. Use the one-click internal-link helper (or Link Map).', 2, 'link' );
@@ -150,7 +150,7 @@ final class NRA_Analyzer {
         if ( strlen( rawurldecode( $d['slug'] ) ) > 0 ) { $sl = strlen( rawurldecode( $d['slug'] ) ); self::check( $c, 'urllen', $sl <= 75 ? 'good' : 'ok', 'URL length', $sl <= 75 ? $sl . ' characters. Short and clean.' : $sl . ' characters. Shorter URLs (under 75) are easier to share and rank.', 0, ( $d['post_id'] && 'publish' === get_post_status( $d['post_id'] ) ) ? '' : 'ai' ); }
         if ( $kw && $d['post_id'] ) {
             global $wpdb;
-            $dup = $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID=m.post_id WHERE m.meta_key='_nra_focuskw' AND LOWER(m.meta_value)=LOWER(%s) AND m.post_id<>%d AND p.post_status IN ('publish','draft','pending','future') LIMIT 5", $kw, (int) $d['post_id'] ) );
+            $dup = $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->postmeta} m JOIN {$wpdb->posts} p ON p.ID=m.post_id WHERE m.meta_key='_ntseoai_focuskw' AND LOWER(m.meta_value)=LOWER(%s) AND m.post_id<>%d AND p.post_status IN ('publish','draft','pending','future') LIMIT 5", $kw, (int) $d['post_id'] ) );
             self::check( $c, 'cannibal', $dup ? 'bad' : 'good', 'Unique keyword', $dup ? 'Same focus keyword is used on: ' . implode( ', ', array_map( function ( $i ) { return '#' . $i . ' ' . wp_strip_all_tags( get_the_title( $i ) ); }, $dup ) ) . '. Pages compete with each other; pick a different keyword or merge them.' : 'No other page targets this keyword.', 1 );
         }
         if ( $imgs ) { self::check( $c, 'alt', 0 === $noalt ? 'good' : 'bad', 'Image alt text', 0 === $noalt ? 'All ' . $imgs . ' image(s) have alt text.' : $noalt . ' of ' . $imgs . ' image(s) have no alt text.', 1, 'ai' ); }
@@ -158,16 +158,16 @@ final class NRA_Analyzer {
         if ( $d['post_id'] ) {
             $inc = self::inbound_count( (int) $d['post_id'] );
             $planned = (int) $d['aw_inbound'];
-            if ( ! $planned && 'publish' !== get_post_status( $d['post_id'] ) ) { $pl = get_post_meta( $d['post_id'], '_nra_aw_inbound', true ); $planned = is_array( $pl ) ? count( $pl ) : 0; }
+            if ( ! $planned && 'publish' !== get_post_status( $d['post_id'] ) ) { $pl = get_post_meta( $d['post_id'], '_ntseoai_aw_inbound', true ); $planned = is_array( $pl ) ? count( $pl ) : 0; }
             if ( null !== $inc && 0 === $inc && $planned > 0 ) { self::check( $c, 'inbound', 'good', 'Links pointing to this page', $planned . ' related page(s) will link here as soon as this page is live (planned by the Auto Writer).', 2 ); }
             elseif ( null !== $inc ) { self::check( $c, 'inbound', $inc > 0 ? 'good' : 'bad', 'Links pointing to this page', $inc > 0 ? $inc . ' page(s) link here.' : 'Orphan page: no other page links here. Open Link Map.', 2 ); }
         }
 
         // ---- GEO checks (AI answer readiness)
         $g = array();
-        $first150 = NRA_Util::cut( $text, 600 );
+        $first150 = NTSEOAI_Util::cut( $text, 600 );
         $kwin = $kw ? self::contains( $first150, $kw ) : false;
-        $fw = NRA_Util::word_count( $first );
+        $fw = NTSEOAI_Util::word_count( $first );
         $ans_ok = ( $fw >= 35 && $fw <= 70 && ( ! $kw || self::contains( $first, $kw ) ) );
         self::check( $g, 'g_answer', $ans_ok ? 'good' : 'ok', 'Direct answer up front', $ans_ok ? 'The opening paragraph (' . $fw . ' words) answers the topic directly.' : 'Open with a 40-60 word paragraph that names the topic and answers it directly (now ' . $fw . ' words). AI engines quote openings.', 3, 'ai' );
         $q = 0; foreach ( $h2s as $x ) { if ( preg_match( '/[?؟]|^(how|what|why|when|which|who|can|is|does|do|are|should|چگونه|چطور|چیست|چرا|آیا|کدام)\b/iu', trim( $x ) ) ) { $q++; } }
@@ -183,8 +183,8 @@ final class NRA_Analyzer {
         self::check( $g, 'g_cite', $ext > 0 ? 'good' : 'ok', 'Cited sources', $ext > 0 ? 'Outbound references present.' : 'Citing a primary source makes the page more trustworthy to answer engines.', 0, 'ext' );
         $upd = $d['post_id'] ? strtotime( get_post_field( 'post_modified_gmt', $d['post_id'] ) . ' UTC' ) : 0;
         if ( $upd ) { $months = ( time() - $upd ) / 2592000; self::check( $g, 'g_fresh', $months < 12 ? 'good' : 'ok', 'Freshness', $months < 12 ? 'Updated within the last year.' : 'Not updated for ' . floor( $months ) . ' months. Refresh facts and republish.', 0 ); }
-        $ent = ( NRA_Settings::get( 'org_name' ) || get_bloginfo( 'name' ) );
-        self::check( $g, 'g_entity', ( $ent && NRA_Settings::get( 'business' ) ) ? 'good' : 'ok', 'Brand / entity clarity', ( $ent && NRA_Settings::get( 'business' ) ) ? 'Business description is set, so Organization schema and llms.txt can describe you.' : 'Fill "About the business" in Settings so AI engines learn who you are.', 0 );
+        $ent = ( NTSEOAI_Settings::get( 'org_name' ) || get_bloginfo( 'name' ) );
+        self::check( $g, 'g_entity', ( $ent && NTSEOAI_Settings::get( 'business' ) ) ? 'good' : 'ok', 'Brand / entity clarity', ( $ent && NTSEOAI_Settings::get( 'business' ) ) ? 'Business description is set, so Organization schema and llms.txt can describe you.' : 'Fill "About the business" in Settings so AI engines learn who you are.', 0 );
 
         $res = array( 'checks' => $c, 'geo_checks' => $g );
         $res['score']     = self::score( $c );
@@ -207,9 +207,10 @@ final class NRA_Analyzer {
 
     public static function inbound_count( $id ) {
         global $wpdb;
-        $t = $wpdb->prefix . 'nra_links';
+        $t = $wpdb->prefix . 'ntseoai_links';
         if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $t ) ) !== $t ) { return null; }
-        if ( ! get_option( 'nra_graph_built' ) ) { return null; }
+        if ( ! get_option( 'ntseoai_graph_built' ) ) { return null; }
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- table name is $wpdb->prefix plus a fixed string; the value is prepared.
         return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT src_id) FROM {$t} WHERE dst_id = %d", $id ) );
     }
 
@@ -222,7 +223,7 @@ final class NRA_Analyzer {
             'post_id' => $post->ID, 'title' => $post->post_title, 'content' => do_shortcode_safe( $post->post_content ), 'slug' => $post->post_name,
             'kw' => $m['kw'], 'seo_title' => $m['title'], 'desc' => $m['desc'], 'faq' => $m['faq'], 'takeaways' => $m['takeaways'],
         ) );
-        if ( $save ) { update_post_meta( $post->ID, '_nra_score', $r['score'] ); update_post_meta( $post->ID, '_nra_geo_score', $r['geo_score'] ); }
+        if ( $save ) { update_post_meta( $post->ID, '_ntseoai_score', $r['score'] ); update_post_meta( $post->ID, '_ntseoai_geo_score', $r['geo_score'] ); }
         return $r;
     }
 }

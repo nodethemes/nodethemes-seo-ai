@@ -2,7 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /** small shared helpers (text handling that works for Latin, Persian/Arabic and other Unicode text) */
-final class NRA_Util {
+final class NTSEOAI_Util {
 
     /** normalise text for matching: lower-case, unify Arabic/Persian letters and digits, ZWNJ -> space */
     public static function norm( $s ) {
@@ -79,15 +79,17 @@ final class NRA_Util {
     }
 
     public static function post_types() {
-        $t = (array) NRA_Settings::get( 'post_types' );
+        $t = (array) NTSEOAI_Settings::get( 'post_types' );
         $t = array_values( array_filter( $t, 'post_type_exists' ) );
         return $t ? $t : array( 'post', 'page' );
     }
     /** turn a PHP fatal inside our AJAX calls into a readable message instead of a blank HTTP 500 */
     public static function ajax_safety() {
-        if ( ! wp_doing_ajax() || 0 !== strpos( (string) ( $_REQUEST['action'] ?? '' ), 'nra_' ) ) { return; } // phpcs:ignore
-        if ( function_exists( 'set_time_limit' ) ) { @set_time_limit( 180 ); } // phpcs:ignore
-        @ini_set( 'display_errors', '0' ); // phpcs:ignore
+        if ( ! wp_doing_ajax() || 0 !== strpos( (string) ( $_REQUEST['action'] ?? '' ), 'ntseoai_' ) ) { return; } // phpcs:ignore
+        // a longer time limit only for the few actions that call an AI model
+        if ( in_array( (string) ( $_REQUEST['action'] ?? '' ), array( 'ntseoai_ai_article', 'ntseoai_ai_autopilot', 'ntseoai_ai_fix', 'ntseoai_ai_outline', 'ntseoai_ai_section', 'ntseoai_job_worker' ), true ) ) { // phpcs:ignore
+            if ( function_exists( 'set_time_limit' ) ) { @set_time_limit( 180 ); } // phpcs:ignore
+        }
         register_shutdown_function( function () {
             $e = error_get_last();
             if ( ! $e || ! in_array( $e['type'], array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR ), true ) ) { return; }
@@ -98,7 +100,7 @@ final class NRA_Util {
         } );
     }
     /** AJAX nonce check; a background job was already authorised when it was started */
-    public static function nonce() { if ( class_exists( 'NRA_Job' ) && NRA_Job::$running ) { return; } check_ajax_referer( 'nra_admin', 'nonce' ); }
+    public static function nonce() { if ( class_exists( 'NTSEOAI_Job' ) && NTSEOAI_Job::$running ) { return; } check_ajax_referer( 'ntseoai_admin', 'nonce' ); }
     public static function ok( $data = array() ) { wp_send_json_success( $data ); }
     public static function fail( $msg, $extra = array() ) { wp_send_json_error( array_merge( array( 'message' => $msg ), $extra ) ); }
 

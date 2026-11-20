@@ -2,10 +2,10 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /** one-click import from Yoast SEO, Rank Math and All in One SEO */
-final class NRA_Import {
+final class NTSEOAI_Import {
 
     public static function init() {
-        add_action( 'wp_ajax_nra_import_run', array( __CLASS__, 'ajax_run' ) );
+        add_action( 'wp_ajax_ntseoai_import_run', array( __CLASS__, 'ajax_run' ) );
     }
     private static function map() {
         return array(
@@ -32,29 +32,29 @@ final class NRA_Import {
     }
     public static function render_card() {
         $d = self::detect();
-        echo '<div class="nra-card"><h2>Import from another SEO plugin</h2>';
-        if ( ! $d ) { echo '<p class="nra-help">No Yoast, Rank Math or All in One SEO data found in this site.</p></div>'; return; }
-        echo '<p class="nra-help">Copies titles, descriptions, focus keywords, canonical, social and noindex settings into NodeThemes SEO AI. Values you already set here are not overwritten. Your old plugin data stays untouched. Deactivate the old SEO plugin afterwards so tags are not output twice.</p>';
+        echo '<div class="ntseoai-card"><h2>Import from another SEO plugin</h2>';
+        if ( ! $d ) { echo '<p class="ntseoai-help">No Yoast, Rank Math or All in One SEO data found in this site.</p></div>'; return; }
+        echo '<p class="ntseoai-help">Copies titles, descriptions, focus keywords, canonical, social and noindex settings into NodeThemes SEO AI. Values you already set here are not overwritten. Your old plugin data stays untouched. Deactivate the old SEO plugin afterwards so tags are not output twice.</p>';
         foreach ( $d as $id => $n ) {
             $m = self::map()[ $id ];
-            echo '<p><button type="button" class="nra-btn nra-import" data-src="' . esc_attr( $id ) . '">Import from ' . esc_html( $m['label'] ) . ' (' . (int) $n . ' pages)</button> <span class="nra-import-out" data-for="' . esc_attr( $id ) . '"></span></p>';
+            echo '<p><button type="button" class="ntseoai-btn ntseoai-import" data-src="' . esc_attr( $id ) . '">Import from ' . esc_html( $m['label'] ) . ' (' . (int) $n . ' pages)</button> <span class="ntseoai-import-out" data-for="' . esc_attr( $id ) . '"></span></p>';
         }
         echo '</div>';
     }
     public static function ajax_run() {
-        check_ajax_referer( 'nra_admin', 'nonce' );
-        if ( ! current_user_can( 'manage_options' ) ) { NRA_Util::fail( 'Not allowed.' ); }
+        check_ajax_referer( 'ntseoai_admin', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) { NTSEOAI_Util::fail( 'Not allowed.' ); }
         global $wpdb;
         $src = isset( $_POST['src'] ) ? sanitize_key( $_POST['src'] ) : '';
         $off = isset( $_POST['offset'] ) ? max( 0, (int) $_POST['offset'] ) : 0;
         $maps = self::map();
-        if ( ! isset( $maps[ $src ] ) ) { NRA_Util::fail( 'Unknown source.' ); }
+        if ( ! isset( $maps[ $src ] ) ) { NTSEOAI_Util::fail( 'Unknown source.' ); }
         $k = $maps[ $src ]['keys'];
         $ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key IN (%s,%s) AND meta_value<>'' ORDER BY post_id LIMIT 50 OFFSET %d", $k['title'], $k['desc'], $off ) ); // phpcs:ignore
         $n = 0;
         foreach ( $ids as $id ) {
             $id = (int) $id;
-            $put = function ( $key, $val ) use ( $id ) { if ( '' !== trim( (string) $val ) && '' === (string) get_post_meta( $id, '_nra_' . $key, true ) ) { update_post_meta( $id, '_nra_' . $key, $val ); } };
+            $put = function ( $key, $val ) use ( $id ) { if ( '' !== trim( (string) $val ) && '' === (string) get_post_meta( $id, '_ntseoai_' . $key, true ) ) { update_post_meta( $id, '_ntseoai_' . $key, $val ); } };
             $g = function ( $name ) use ( $id, $k ) { return isset( $k[ $name ] ) ? get_post_meta( $id, $k[ $name ], true ) : ''; };
             $put( 'title', self::vars( $g( 'title' ) ) );
             $put( 'desc', self::vars( $g( 'desc' ) ) );
@@ -69,7 +69,7 @@ final class NRA_Import {
             $n++;
         }
         $done = count( $ids ) < 50;
-        if ( $done ) { NRA_Sitemap::bump(); NRA_Geo::bump(); }
-        NRA_Util::ok( array( 'done' => $done, 'next' => $off + 50, 'imported' => $n ) );
+        if ( $done ) { NTSEOAI_Sitemap::bump(); NTSEOAI_Geo::bump(); }
+        NTSEOAI_Util::ok( array( 'done' => $done, 'next' => $off + 50, 'imported' => $n ) );
     }
 }

@@ -2,22 +2,28 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /** Classic SEO-plugin extras: WooCommerce clean URLs, visible breadcrumbs, robots.txt additions */
-final class NRA_Extras {
+final class NTSEOAI_Extras {
 
     public static function init() {
-        add_shortcode( 'nra_breadcrumbs', array( __CLASS__, 'breadcrumbs_html' ) );
+        add_shortcode( 'ntseoai_breadcrumbs', array( __CLASS__, 'breadcrumbs_html' ) );
         add_filter( 'robots_txt', array( __CLASS__, 'robots_extra' ), 20, 2 );
         add_action( 'wp_head', array( __CLASS__, 'head_tags' ), 1 );
+        add_action( 'wp_enqueue_scripts', array( __CLASS__, 'tracking_scripts' ), 1 );
         add_action( 'wp_body_open', array( __CLASS__, 'gtm_body' ), 1 );
         add_filter( 'the_content', array( __CLASS__, 'toc' ), 9 );
-        if ( is_admin() && NRA_Settings::on( 'list_columns' ) ) {
-            add_action( 'admin_head-edit.php', function () { echo '<style>.wp-list-table th.column-nra_links,.wp-list-table td.column-nra_links{width:72px;white-space:nowrap}.wp-list-table th.column-nra,.wp-list-table td.column-nra{width:120px;white-space:nowrap}</style>'; } );
+        if ( is_admin() && NTSEOAI_Settings::on( 'list_columns' ) ) {
+            add_action( 'admin_enqueue_scripts', function ( $hook ) {
+                if ( 'edit.php' !== $hook ) { return; }
+                wp_register_style( 'ntseoai-list-columns', false, array(), NTSEOAI_VERSION );
+                wp_enqueue_style( 'ntseoai-list-columns' );
+                wp_add_inline_style( 'ntseoai-list-columns', '.wp-list-table th.column-ntseoai_links,.wp-list-table td.column-ntseoai_links{width:72px;white-space:nowrap}.wp-list-table th.column-ntseoai,.wp-list-table td.column-ntseoai{width:120px;white-space:nowrap}' );
+            } );
             foreach ( array( 'post', 'page', 'product' ) as $pt ) {
                 add_filter( "manage_{$pt}_posts_columns", array( __CLASS__, 'col_add' ) );
                 add_action( "manage_{$pt}_posts_custom_column", array( __CLASS__, 'col_show' ), 10, 2 );
             }
         }
-        if ( NRA_Settings::on( 'wc_strip_base' ) ) {
+        if ( NTSEOAI_Settings::on( 'wc_strip_base' ) ) {
             add_filter( 'post_type_link', array( __CLASS__, 'product_link' ), 99, 2 );
             add_filter( 'term_link', array( __CLASS__, 'term_link' ), 99, 3 );
             add_filter( 'request', array( __CLASS__, 'resolve' ), 1 );
@@ -25,41 +31,47 @@ final class NRA_Extras {
         }
     }
 
-    // ---------------------------------------------------------------- breadcrumbs ([nra_breadcrumbs] or nra_breadcrumbs())
+    // ---------------------------------------------------------------- breadcrumbs ([ntseoai_breadcrumbs] or ntseoai_breadcrumbs())
     public static function breadcrumbs_html() {
         if ( is_front_page() ) { return ''; }
-        $c = NRA_Schema::breadcrumbs();
+        $c = NTSEOAI_Schema::breadcrumbs();
         if ( count( $c ) < 2 ) { return ''; }
-        $sep = apply_filters( 'nra_breadcrumb_separator', ' &rsaquo; ' );
+        $sep = wp_kses_post( apply_filters( 'ntseoai_breadcrumb_separator', ' &rsaquo; ' ) );
         $out = array(); $n = count( $c );
         foreach ( $c as $i => $b ) { $out[] = ( $i < $n - 1 ) ? '<a href="' . esc_url( $b[1] ) . '">' . esc_html( $b[0] ) . '</a>' : '<span aria-current="page">' . esc_html( $b[0] ) . '</span>'; }
-        return '<nav class="nra-breadcrumbs" aria-label="Breadcrumb">' . implode( $sep, $out ) . '</nav>';
+        return '<nav class="ntseoai-breadcrumbs" aria-label="Breadcrumb">' . implode( $sep, $out ) . '</nav>';
     }
 
     // ---------------------------------------------------------------- site verification + Google tracking
     private static function tracking_ok() {
-        if ( NRA_Settings::on( 'ga_skip_users' ) && is_user_logged_in() && current_user_can( 'edit_posts' ) ) { return false; }
-        return (bool) apply_filters( 'nra_tracking_allowed', true );
+        if ( NTSEOAI_Settings::on( 'ga_skip_users' ) && is_user_logged_in() && current_user_can( 'edit_posts' ) ) { return false; }
+        return (bool) apply_filters( 'ntseoai_tracking_allowed', true );
     }
     public static function head_tags() {
         $map = array( 'ver_google' => 'google-site-verification', 'ver_bing' => 'msvalidate.01', 'ver_yandex' => 'yandex-verification', 'ver_pinterest' => 'p:domain_verify' );
-        if ( is_front_page() || is_home() ) { foreach ( $map as $k => $name ) { $v = NRA_Settings::get( $k ); if ( $v ) { echo '<meta name="' . esc_attr( $name ) . '" content="' . esc_attr( $v ) . '">' . "\n"; } } }
+        if ( is_front_page() || is_home() ) { foreach ( $map as $k => $name ) { $v = NTSEOAI_Settings::get( $k ); if ( $v ) { echo '<meta name="' . esc_attr( $name ) . '" content="' . esc_attr( $v ) . '">' . "\n"; } } }
+    }
+    /** Google Tag Manager or GA4, loaded with the WordPress script API (only when an ID is set in Settings) */
+    public static function tracking_scripts() {
         if ( ! self::tracking_ok() ) { return; }
-        $gtm = NRA_Settings::get( 'gtm_id' ); $ga = NRA_Settings::get( 'ga4_id' );
+        $gtm = trim( (string) NTSEOAI_Settings::get( 'gtm_id' ) ); $ga = trim( (string) NTSEOAI_Settings::get( 'ga4_id' ) );
         if ( $gtm ) {
-            echo "<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer'," . wp_json_encode( $gtm ) . ");</script>\n";
+            wp_register_script( 'ntseoai-gtm', false, array(), NTSEOAI_VERSION, false );
+            wp_enqueue_script( 'ntseoai-gtm' );
+            wp_add_inline_script( 'ntseoai-gtm', "(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer'," . wp_json_encode( $gtm ) . ');' );
         } elseif ( $ga ) {
-            echo '<script async src="https://www.googletagmanager.com/gtag/js?id=' . esc_attr( $ga ) . '"></script>' . "\n<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config'," . wp_json_encode( $ga ) . ");</script>\n";
+            wp_enqueue_script( 'ntseoai-gtag', 'https://www.googletagmanager.com/gtag/js?id=' . rawurlencode( $ga ), array(), null, array( 'in_footer' => false, 'strategy' => 'async' ) ); // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- the Google script is versioned by Google.
+            wp_add_inline_script( 'ntseoai-gtag', "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config'," . wp_json_encode( $ga ) . ');', 'before' );
         }
     }
     public static function gtm_body() {
-        $gtm = NRA_Settings::get( 'gtm_id' );
+        $gtm = NTSEOAI_Settings::get( 'gtm_id' );
         if ( $gtm && self::tracking_ok() ) { echo '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=' . esc_attr( $gtm ) . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>' . "\n"; }
     }
 
-    // ---------------------------------------------------------------- [nra_toc]: table of contents built from the headings
+    // ---------------------------------------------------------------- [ntseoai_toc]: table of contents built from the headings
     public static function toc( $content ) {
-        if ( false === strpos( $content, '[nra_toc]' ) ) { return $content; }
+        if ( false === strpos( $content, '[ntseoai_toc]' ) ) { return $content; }
         $items = array(); $used = array();
         $content = preg_replace_callback( '#<h([23])([^>]*)>(.*?)</h\1>#is', function ( $m ) use ( &$items, &$used ) {
             $label = trim( wp_strip_all_tags( $m[3] ) );
@@ -71,19 +83,19 @@ final class NRA_Extras {
         }, $content );
         $html = '';
         if ( count( $items ) >= 3 ) {
-            $html = '<nav class="nra-toc" aria-label="Table of contents"><p class="nra-toc-title"><strong>' . esc_html( apply_filters( 'nra_toc_title', 'Contents' ) ) . '</strong></p><ul>';
+            $html = '<nav class="ntseoai-toc" aria-label="Table of contents"><p class="ntseoai-toc-title"><strong>' . esc_html( apply_filters( 'ntseoai_toc_title', 'Contents' ) ) . '</strong></p><ul>';
             foreach ( $items as $i ) { $html .= '<li' . ( 3 === $i[0] ? ' style="margin-left:1.2em"' : '' ) . '><a href="#' . esc_attr( $i[1] ) . '">' . esc_html( $i[2] ) . '</a></li>'; }
             $html .= '</ul></nav>';
         }
-        return str_replace( '[nra_toc]', $html, $content );
+        return str_replace( '[ntseoai_toc]', $html, $content );
     }
 
     // ---------------------------------------------------------------- post list columns
-    public static function col_add( $cols ) { $cols['nra_links'] = '<span title="Internal links: going out / coming in">Links</span>'; return $cols; }
+    public static function col_add( $cols ) { $cols['ntseoai_links'] = '<span title="Internal links: going out / coming in">Links</span>'; return $cols; }
     public static function col_show( $col, $id ) {
         static $c = null;
-        if ( 'nra_links' === $col ) {
-            if ( null === $c ) { $c = NRA_Links::counts(); }
+        if ( 'ntseoai_links' === $col ) {
+            if ( null === $c ) { $c = NTSEOAI_Links::counts(); }
             echo (int) ( $c[1][ $id ] ?? 0 ) . ' / ' . ( ( $c[0][ $id ] ?? 0 ) ? (int) $c[0][ $id ] : '<span style="color:#b32d2e" title="No other page links here">0</span>' );
         }
     }
@@ -91,7 +103,7 @@ final class NRA_Extras {
     // ---------------------------------------------------------------- robots.txt additions (virtual file only)
     public static function robots_extra( $out, $public ) {
         if ( '0' === (string) $public ) { return $out; }
-        $x = trim( (string) NRA_Settings::get( 'robots_extra' ) );
+        $x = trim( (string) NTSEOAI_Settings::get( 'robots_extra' ) );
         return '' === $x ? $out : rtrim( $out ) . "\n\n# NodeThemes SEO AI: custom rules\n" . $x . "\n";
     }
     /** refuse rules that would hide the whole site from every crawler */
@@ -146,5 +158,5 @@ final class NRA_Extras {
     }
 }
 
-/** template helper: <?php nra_breadcrumbs(); ?> */
-function nra_breadcrumbs() { echo wp_kses_post( NRA_Extras::breadcrumbs_html() ); }
+/** template helper: <?php ntseoai_breadcrumbs(); ?> */
+function ntseoai_breadcrumbs() { echo wp_kses_post( NTSEOAI_Extras::breadcrumbs_html() ); }

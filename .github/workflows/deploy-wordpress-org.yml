@@ -1,0 +1,30 @@
+# Uploads a new version to the WordPress.org plugin directory (SVN) when a version tag is pushed, e.g. 1.4.5.
+# Needs two repository secrets: SVN_USERNAME and SVN_PASSWORD (the SVN password from your WordPress.org profile).
+# The plugin icon and banners come from the .wordpress-org folder.
+name: Deploy to WordPress.org
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy (must match the Stable tag in readme.txt)"
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy to WordPress.org
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy plugin to WordPress.org SVN
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: nodethemes-seo-ai
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}

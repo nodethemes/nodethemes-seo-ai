@@ -2,18 +2,18 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /** redirect manager + 404 monitor + automatic redirect when a slug changes */
-final class NRA_Redirects {
+final class NTSEOAI_Redirects {
 
     public static function init() {
-        if ( ! NRA_Settings::on( 'mod_redirects' ) ) { return; }
+        if ( ! NTSEOAI_Settings::on( 'mod_redirects' ) ) { return; }
         add_action( 'template_redirect', array( __CLASS__, 'handle' ), 2 );
         add_action( 'post_updated', array( __CLASS__, 'slug_changed' ), 10, 3 );
-        add_action( 'admin_post_nra_redirect_add', array( __CLASS__, 'post_add' ) );
-        add_action( 'admin_post_nra_redirect_del', array( __CLASS__, 'post_del' ) );
-        add_action( 'admin_post_nra_404_clear', array( __CLASS__, 'post_clear' ) );
+        add_action( 'admin_post_ntseoai_redirect_add', array( __CLASS__, 'post_add' ) );
+        add_action( 'admin_post_ntseoai_redirect_del', array( __CLASS__, 'post_del' ) );
+        add_action( 'admin_post_ntseoai_404_clear', array( __CLASS__, 'post_clear' ) );
     }
 
-    private static function table() { global $wpdb; return $wpdb->prefix . 'nra_redirects'; }
+    private static function table() { global $wpdb; return $wpdb->prefix . 'ntseoai_redirects'; }
     private static function norm_path( $p ) { $p = '/' . ltrim( (string) $p, '/' ); return strlen( $p ) > 1 ? untrailingslashit( $p ) : $p; }
 
     public static function handle() {
@@ -47,13 +47,13 @@ final class NRA_Redirects {
         global $wpdb;
         if ( strlen( $path ) > 190 || preg_match( '/\.(css|js|map|ico|png|jpe?g|gif|svg|webp|woff2?|ttf)$/i', $path ) ) { return; }
         $ref = isset( $_SERVER['HTTP_REFERER'] ) ? substr( esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) ), 0, 250 ) : ''; // phpcs:ignore
-        $t = $wpdb->prefix . 'nra_404';
+        $t = $wpdb->prefix . 'ntseoai_404';
         $wpdb->query( $wpdb->prepare( "INSERT INTO {$t} (path, hits, referrer, last_seen) VALUES (%s,1,%s,%s) ON DUPLICATE KEY UPDATE hits=hits+1, last_seen=VALUES(last_seen)", $path, $ref, current_time( 'mysql' ) ) ); // phpcs:ignore
     }
 
     public static function slug_changed( $id, $after, $before ) {
         if ( 'publish' !== $before->post_status || 'publish' !== $after->post_status || $before->post_name === $after->post_name ) { return; }
-        if ( ! in_array( $after->post_type, (array) NRA_Settings::get( 'post_types' ), true ) ) { return; }
+        if ( ! in_array( $after->post_type, (array) NTSEOAI_Settings::get( 'post_types' ), true ) ) { return; }
         $old = wp_parse_url( get_permalink( $before ), PHP_URL_PATH );
         $new = get_permalink( $after );
         $old_clone = clone $before;
@@ -75,30 +75,30 @@ final class NRA_Redirects {
 
     public static function post_add() {
         if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Not allowed.', '', array( 'response' => 403 ) ); }
-        check_admin_referer( 'nra_redirect_add' );
+        check_admin_referer( 'ntseoai_redirect_add' );
         $s = isset( $_POST['source'] ) ? sanitize_text_field( wp_unslash( $_POST['source'] ) ) : '';
         $t = isset( $_POST['target'] ) ? esc_url_raw( wp_unslash( $_POST['target'] ) ) : '';
         $c = isset( $_POST['code'] ) ? (int) $_POST['code'] : 301;
         if ( ! in_array( $c, array( 301, 302, 307, 410 ), true ) ) { $c = 301; }
         $rx = ! empty( $_POST['is_regex'] ) ? 1 : 0;
         $s = $rx ? $s : ( wp_parse_url( $s, PHP_URL_PATH ) ?: $s );
-        if ( $s && ( $t || 410 === $c ) ) { self::add( $s, $t, $c, 0, $rx ); NRA_Admin::flash( 'ok', 'Redirect saved.' ); }
-        else { NRA_Admin::flash( 'err', 'Enter a source and a target.' ); }
-        wp_safe_redirect( admin_url( 'admin.php?page=nra-redirects' ) ); exit;
+        if ( $s && ( $t || 410 === $c ) ) { self::add( $s, $t, $c, 0, $rx ); NTSEOAI_Admin::flash( 'ok', 'Redirect saved.' ); }
+        else { NTSEOAI_Admin::flash( 'err', 'Enter a source and a target.' ); }
+        wp_safe_redirect( admin_url( 'admin.php?page=ntseoai-redirects' ) ); exit;
     }
     public static function post_del() {
         if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Not allowed.', '', array( 'response' => 403 ) ); }
-        check_admin_referer( 'nra_redirect_del' );
+        check_admin_referer( 'ntseoai_redirect_del' );
         global $wpdb;
         $id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
         if ( $id ) { $wpdb->delete( self::table(), array( 'id' => $id ) ); }
-        wp_safe_redirect( admin_url( 'admin.php?page=nra-redirects' ) ); exit;
+        wp_safe_redirect( admin_url( 'admin.php?page=ntseoai-redirects' ) ); exit;
     }
     public static function post_clear() {
         if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Not allowed.', '', array( 'response' => 403 ) ); }
-        check_admin_referer( 'nra_404_clear' );
+        check_admin_referer( 'ntseoai_404_clear' );
         global $wpdb;
-        $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}nra_404" ); // phpcs:ignore
-        wp_safe_redirect( admin_url( 'admin.php?page=nra-redirects' ) ); exit;
+        $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}ntseoai_404" ); // phpcs:ignore
+        wp_safe_redirect( admin_url( 'admin.php?page=ntseoai-redirects' ) ); exit;
     }
 }

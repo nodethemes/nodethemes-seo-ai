@@ -2,11 +2,11 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /** JSON-LD graph: Organization, WebSite, WebPage, Article, Product, Breadcrumbs, FAQPage */
-final class NRA_Schema {
+final class NTSEOAI_Schema {
 
     public static function graph() {
         $g   = array();
-        $s   = NRA_Settings::all();
+        $s   = NTSEOAI_Settings::all();
         $home = trailingslashit( home_url() );
         $org_id = $home . '#organization';
         $site_id = $home . '#website';
@@ -16,7 +16,7 @@ final class NRA_Schema {
         if ( $s['org_logo'] ) { $org['logo'] = array( '@type' => 'ImageObject', 'url' => esc_url_raw( $s['org_logo'] ) ); $org['image'] = esc_url_raw( $s['org_logo'] ); }
         if ( $s['org_email'] ) { $org['email'] = $s['org_email']; }
         if ( $s['org_phone'] ) { $org['telephone'] = $s['org_phone']; }
-        if ( trim( (string) $s['business'] ) ) { $org['description'] = NRA_Util::cut( trim( $s['business'] ), 300 ); }
+        if ( trim( (string) $s['business'] ) ) { $org['description'] = NTSEOAI_Util::cut( trim( $s['business'] ), 300 ); }
         $social = array_values( array_filter( array_map( 'esc_url_raw', preg_split( '/\R/', (string) $s['org_social'] ) ) ) );
         if ( $social ) { $org['sameAs'] = $social; }
         $g[] = $org;
@@ -30,11 +30,11 @@ final class NRA_Schema {
             $p   = get_queried_object();
             if ( ! $p ) { return $g; }
             $url = get_permalink( $p );
-            $m   = NRA_Analyzer::meta( $p->ID );
+            $m   = NTSEOAI_Analyzer::meta( $p->ID );
             $page_id = $url . '#webpage';
-            $title = NRA_Frontend::document_title();
-            $desc  = NRA_Frontend::description();
-            $img   = NRA_Frontend::image();
+            $title = NTSEOAI_Frontend::document_title();
+            $desc  = NTSEOAI_Frontend::description();
+            $img   = NTSEOAI_Frontend::image();
             $page  = array( '@type' => ( is_page() ? 'WebPage' : 'WebPage' ), '@id' => $page_id, 'url' => $url, 'name' => $title, 'isPartOf' => array( '@id' => $site_id ), 'inLanguage' => get_bloginfo( 'language' ), 'datePublished' => get_the_date( 'c', $p ), 'dateModified' => get_the_modified_date( 'c', $p ) );
             if ( $desc ) { $page['description'] = $desc; }
             if ( $img ) { $page['primaryImageOfPage'] = array( '@type' => 'ImageObject', 'url' => $img ); }
@@ -50,16 +50,16 @@ final class NRA_Schema {
             $type = $m['schema_type'];
             if ( ! $type ) { $type = ( 'product' === $p->post_type ) ? 'Product' : ( 'post' === $p->post_type ? 'BlogPosting' : '' ); }
             if ( 'none' !== $type && ( 'Article' === $type || 'BlogPosting' === $type || 'NewsArticle' === $type ) ) {
-                $a = array( '@type' => $type, '@id' => $url . '#article', 'headline' => NRA_Util::cut( get_the_title( $p ), 110 ), 'mainEntityOfPage' => array( '@id' => $page_id ), 'datePublished' => get_the_date( 'c', $p ), 'dateModified' => get_the_modified_date( 'c', $p ), 'author' => array( '@type' => 'Person', 'name' => get_the_author_meta( 'display_name', $p->post_author ), 'url' => get_author_posts_url( $p->post_author ) ), 'publisher' => array( '@id' => $org_id ), 'inLanguage' => get_bloginfo( 'language' ) );
+                $a = array( '@type' => $type, '@id' => $url . '#article', 'headline' => NTSEOAI_Util::cut( get_the_title( $p ), 110 ), 'mainEntityOfPage' => array( '@id' => $page_id ), 'datePublished' => get_the_date( 'c', $p ), 'dateModified' => get_the_modified_date( 'c', $p ), 'author' => array( '@type' => 'Person', 'name' => get_the_author_meta( 'display_name', $p->post_author ), 'url' => get_author_posts_url( $p->post_author ) ), 'publisher' => array( '@id' => $org_id ), 'inLanguage' => get_bloginfo( 'language' ) );
                 if ( $desc ) { $a['description'] = $desc; }
                 if ( $img ) { $a['image'] = array( $img ); }
-                $a['wordCount'] = NRA_Util::word_count( NRA_Util::text( $p->post_content ) );
+                $a['wordCount'] = NTSEOAI_Util::word_count( NTSEOAI_Util::text( $p->post_content ) );
                 if ( $m['kw'] ) { $a['keywords'] = $m['kw']; }
                 $g[] = $a;
             } elseif ( 'Product' === $type && function_exists( 'wc_get_product' ) ) {
                 $pr = wc_get_product( $p->ID );
                 if ( $pr ) {
-                    $o = array( '@type' => 'Product', '@id' => $url . '#product', 'name' => get_the_title( $p ), 'url' => $url, 'description' => $desc ? $desc : NRA_Util::cut( NRA_Util::text( $p->post_content ), 300 ), 'brand' => array( '@id' => $org_id ) );
+                    $o = array( '@type' => 'Product', '@id' => $url . '#product', 'name' => get_the_title( $p ), 'url' => $url, 'description' => $desc ? $desc : NTSEOAI_Util::cut( NTSEOAI_Util::text( $p->post_content ), 300 ), 'brand' => array( '@id' => $org_id ) );
                     if ( $img ) { $o['image'] = array( $img ); }
                     if ( $pr->get_sku() ) { $o['sku'] = $pr->get_sku(); }
                     foreach ( array( 'product_brand', 'pa_brand', 'pwb-brand', 'yith_product_brand' ) as $btx ) {
@@ -97,10 +97,10 @@ final class NRA_Schema {
         } elseif ( is_category() || is_tag() || is_tax() ) {
             $t = get_queried_object();
             if ( $t && ! is_wp_error( $t ) ) {
-                $g[] = array( '@type' => 'CollectionPage', '@id' => get_term_link( $t ) . '#webpage', 'url' => get_term_link( $t ), 'name' => NRA_Frontend::document_title(), 'isPartOf' => array( '@id' => $site_id ) );
+                $g[] = array( '@type' => 'CollectionPage', '@id' => get_term_link( $t ) . '#webpage', 'url' => get_term_link( $t ), 'name' => NTSEOAI_Frontend::document_title(), 'isPartOf' => array( '@id' => $site_id ) );
             }
         }
-        return apply_filters( 'nra_schema_graph', $g );
+        return apply_filters( 'ntseoai_schema_graph', $g );
     }
 
     public static function breadcrumbs() {
@@ -129,6 +129,6 @@ final class NRA_Schema {
     public static function render() {
         $g = self::graph();
         if ( ! $g ) { return; }
-        echo "<script type=\"application/ld+json\" class=\"nra-schema\">" . wp_json_encode( array( '@context' => 'https://schema.org', '@graph' => $g ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP ) . "</script>\n"; // phpcs:ignore
+        wp_print_inline_script_tag( wp_json_encode( array( '@context' => 'https://schema.org', '@graph' => $g ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP ), array( 'type' => 'application/ld+json', 'class' => 'ntseoai-schema' ) );
     }
 }

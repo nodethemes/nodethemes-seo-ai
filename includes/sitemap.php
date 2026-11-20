@@ -1,44 +1,42 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/** XML sitemaps (noindex-aware, with images) + IndexNow */
-final class NRA_Sitemap {
+/** XML sitemaps (noindex-aware, with images). IndexNow pings are part of the Pro add-on. */
+final class NTSEOAI_Sitemap {
     const PER = 1000;
 
     public static function init() {
         add_action( 'init', array( __CLASS__, 'add_rewrites' ) );
-        add_filter( 'query_vars', function ( $v ) { $v[] = 'nra_sm'; $v[] = 'nra_sm_page'; $v[] = 'nra_indexnow'; return $v; } );
+        add_filter( 'query_vars', function ( $v ) { $v[] = 'ntseoai_sm'; $v[] = 'ntseoai_sm_page'; return $v; } );
         add_action( 'template_redirect', array( __CLASS__, 'serve' ), 0 );
         add_action( 'save_post', array( __CLASS__, 'bump' ) );
         add_action( 'deleted_post', array( __CLASS__, 'bump' ) );
         add_action( 'created_term', array( __CLASS__, 'bump' ) );
         add_action( 'delete_term', array( __CLASS__, 'bump' ) );
-        add_action( 'transition_post_status', array( __CLASS__, 'indexnow_hook' ), 20, 3 );
         add_filter( 'robots_txt', array( __CLASS__, 'robots' ), 20, 2 );
-        if ( NRA_Settings::on( 'mod_sitemap' ) ) { add_filter( 'wp_sitemaps_enabled', '__return_false' ); }
+        if ( NTSEOAI_Settings::on( 'mod_sitemap' ) ) { add_filter( 'wp_sitemaps_enabled', '__return_false' ); }
     }
     public static function add_rewrites() {
-        add_rewrite_rule( '^sitemap\.xml$', 'index.php?nra_sm=index', 'top' );
-        add_rewrite_rule( '^nra-sitemap-([a-z0-9_]+)-([0-9]+)\.xml$', 'index.php?nra_sm=$matches[1]&nra_sm_page=$matches[2]', 'top' );
-        add_rewrite_rule( '^([a-f0-9]{32})\.txt$', 'index.php?nra_indexnow=$matches[1]', 'top' );
+        add_rewrite_rule( '^sitemap\.xml$', 'index.php?ntseoai_sm=index', 'top' );
+        add_rewrite_rule( '^ntseoai-sitemap-([a-z0-9_]+)-([0-9]+)\.xml$', 'index.php?ntseoai_sm=$matches[1]&ntseoai_sm_page=$matches[2]', 'top' );
     }
-    public static function bump() { update_option( 'nra_sm_ver', time(), false ); }
+    public static function bump() { update_option( 'ntseoai_sm_ver', time(), false ); }
     public static function url() { return home_url( '/sitemap.xml' ); }
 
     public static function robots( $out, $public ) {
         if ( '0' === (string) $public ) { return $out; }
-        if ( NRA_Settings::on( 'mod_sitemap' ) && false === stripos( $out, 'sitemap:' ) ) { $out = rtrim( $out ) . "\n\nSitemap: " . self::url() . "\n"; }
+        if ( NTSEOAI_Settings::on( 'mod_sitemap' ) && false === stripos( $out, 'sitemap:' ) ) { $out = rtrim( $out ) . "\n\nSitemap: " . self::url() . "\n"; }
         return $out;
     }
 
     private static function types() {
         $t = array();
-        foreach ( (array) NRA_Settings::get( 'post_types' ) as $pt ) { if ( post_type_exists( $pt ) ) { $t[] = $pt; } }
+        foreach ( (array) NTSEOAI_Settings::get( 'post_types' ) as $pt ) { if ( post_type_exists( $pt ) ) { $t[] = $pt; } }
         return $t;
     }
     private static function excluded_ids() {
         global $wpdb;
-        return array_map( 'intval', (array) $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key='_nra_noindex' AND meta_value<>''" ) );
+        return array_map( 'intval', (array) $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key='_ntseoai_noindex' AND meta_value<>''" ) );
     }
     private static function count_posts( $pt ) {
         global $wpdb;
@@ -49,16 +47,11 @@ final class NRA_Sitemap {
     }
 
     public static function serve() {
-        $sm = get_query_var( 'nra_sm' );
-        $key = get_query_var( 'nra_indexnow' );
-        if ( $key ) {
-            if ( hash_equals( (string) get_option( 'nra_indexnow_key' ), (string) $key ) ) { status_header( 200 ); header( 'Content-Type: text/plain; charset=utf-8' ); echo esc_html( $key ); exit; }
-            return;
-        }
-        if ( ! $sm || ! NRA_Settings::on( 'mod_sitemap' ) ) { return; }
-        $ver = (string) get_option( 'nra_sm_ver', '0' );
-        $page = max( 1, (int) get_query_var( 'nra_sm_page' ) );
-        $ck = 'nra_sm_' . md5( $sm . '|' . $page . '|' . $ver );
+        $sm = get_query_var( 'ntseoai_sm' );
+        if ( ! $sm || ! NTSEOAI_Settings::on( 'mod_sitemap' ) ) { return; }
+        $ver = (string) get_option( 'ntseoai_sm_ver', '0' );
+        $page = max( 1, (int) get_query_var( 'ntseoai_sm_page' ) );
+        $ck = 'ntseoai_sm_' . md5( $sm . '|' . $page . '|' . $ver );
         $xml = get_transient( $ck );
         if ( false === $xml ) {
             $xml = ( 'index' === $sm ) ? self::build_index() : self::build_part( $sm, $page );
@@ -69,7 +62,7 @@ final class NRA_Sitemap {
         header( 'Content-Type: application/xml; charset=utf-8' );
         header( 'X-Robots-Tag: noindex, follow' );
         header( 'Cache-Control: public, max-age=3600' );
-        echo $xml; // phpcs:ignore
+        echo $xml; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- XML sitemap: every URL is escaped with esc_url() and dates come from mysql2date() when the XML is built.
         exit;
     }
 
@@ -84,13 +77,13 @@ final class NRA_Sitemap {
             for ( $i = 1; $i <= $pages; $i++ ) {
                 global $wpdb;
                 $last = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(post_modified_gmt) FROM {$wpdb->posts} WHERE post_type=%s AND post_status='publish'", $pt ) );
-                $x .= '<sitemap><loc>' . esc_url( home_url( "/nra-sitemap-{$pt}-{$i}.xml" ) ) . '</loc>' . ( $last ? '<lastmod>' . mysql2date( 'c', $last, false ) . '</lastmod>' : '' ) . "</sitemap>\n";
+                $x .= '<sitemap><loc>' . esc_url( home_url( "/ntseoai-sitemap-{$pt}-{$i}.xml" ) ) . '</loc>' . ( $last ? '<lastmod>' . mysql2date( 'c', $last, false ) . '</lastmod>' : '' ) . "</sitemap>\n";
             }
         }
         foreach ( get_taxonomies( array( 'public' => true ), 'names' ) as $tax ) {
-            if ( 'post_tag' === $tax && NRA_Settings::on( 'noindex_tags' ) ) { continue; }
+            if ( 'post_tag' === $tax && NTSEOAI_Settings::on( 'noindex_tags' ) ) { continue; }
             if ( in_array( $tax, array( 'post_format', 'product_shipping_class' ), true ) ) { continue; }
-            if ( wp_count_terms( array( 'taxonomy' => $tax, 'hide_empty' => true ) ) > 0 ) { $x .= '<sitemap><loc>' . esc_url( home_url( "/nra-sitemap-tax_{$tax}-1.xml" ) ) . "</loc></sitemap>\n"; }
+            if ( wp_count_terms( array( 'taxonomy' => $tax, 'hide_empty' => true ) ) > 0 ) { $x .= '<sitemap><loc>' . esc_url( home_url( "/ntseoai-sitemap-tax_{$tax}-1.xml" ) ) . "</loc></sitemap>\n"; }
         }
         return $x . '</sitemapindex>';
     }
@@ -102,7 +95,7 @@ final class NRA_Sitemap {
             $terms = get_terms( array( 'taxonomy' => $tax, 'hide_empty' => true, 'number' => self::PER, 'offset' => ( $page - 1 ) * self::PER ) );
             if ( is_wp_error( $terms ) || ! $terms ) { return null; }
             foreach ( $terms as $t ) {
-                if ( get_term_meta( $t->term_id, 'nra_noindex', true ) ) { continue; }
+                if ( get_term_meta( $t->term_id, 'ntseoai_noindex', true ) ) { continue; }
                 $l = get_term_link( $t ); if ( is_wp_error( $l ) ) { continue; }
                 $x .= '<url><loc>' . esc_url( $l ) . "</loc></url>\n";
             }
@@ -120,21 +113,5 @@ final class NRA_Sitemap {
             $x .= "</url>\n";
         }
         return $x . '</urlset>';
-    }
-
-    // ------------------------------------------------------------ IndexNow
-    public static function indexnow_hook( $new, $old, $post ) {
-        if ( ! NRA_Pro::active() || ! NRA_Settings::on( 'mod_indexnow' ) || 'publish' !== $new || ! in_array( $post->post_type, (array) NRA_Settings::get( 'post_types' ), true ) ) { return; }
-        if ( get_post_meta( $post->ID, '_nra_noindex', true ) ) { return; }
-        self::indexnow( array( get_permalink( $post ) ) );
-    }
-    public static function indexnow( $urls ) {
-        $key = get_option( 'nra_indexnow_key' );
-        if ( ! $key || ! $urls ) { return false; }
-        $host = wp_parse_url( home_url(), PHP_URL_HOST );
-        $res = wp_remote_post( 'https://api.indexnow.org/indexnow', array( 'timeout' => 8, 'headers' => array( 'Content-Type' => 'application/json; charset=utf-8' ), 'body' => wp_json_encode( array( 'host' => $host, 'key' => $key, 'keyLocation' => home_url( '/' . $key . '.txt' ), 'urlList' => array_values( $urls ) ) ) ) );
-        $ok = ! is_wp_error( $res ) && in_array( (int) wp_remote_retrieve_response_code( $res ), array( 200, 202 ), true );
-        update_option( 'nra_indexnow_last', array( 'time' => time(), 'ok' => $ok, 'count' => count( $urls ) ), false );
-        return $ok;
     }
 }

@@ -1,0 +1,22 @@
+# Updates only the readme.txt and the .wordpress-org assets (icon, banners, screenshots) on WordPress.org,
+# without releasing a new version. Run it from the Actions tab or via the API.
+name: Update WordPress.org assets and readme
+
+on:
+  workflow_dispatch:
+
+jobs:
+  assets:
+    name: Update assets and readme
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: WordPress.org plugin asset/readme update
+        uses: 10up/action-wordpress-plugin-asset-update@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: nodethemes-seo-ai
+          IGNORE_OTHER_FILES: true
